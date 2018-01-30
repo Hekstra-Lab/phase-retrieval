@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-
+from cmocean.cm import phase as phase_cm
+#phase colormap from https://matplotlib.org/cmocean/
 
 def get_mag(FT_arr):
     """
@@ -57,11 +58,11 @@ def phase_intensity_plot(arr, cb=True):
     theta = get_phase(arr)
     norm = plt.Normalize()
 
-    disp_arr = cm.hsv(norm(theta))
+    disp_arr = phase_cm(norm(theta))
     disp_arr[:,:,-1] = r/np.max(r)
     fig, ax = plt.subplots(figsize=(10,10))
     if cb:#Relabel the colorbar without actually rescaling theta to be in [0,2pi]
-        cax = ax.imshow(disp_arr,cmap='hsv')
+        cax = ax.imshow(disp_arr,cmap=phase_cm)
         cbar = fig.colorbar(cax,ticks=np.linspace(0,1,5))
         cbar.ax.set_yticklabels([r"0",r"$\frac{\pi}{2}$",r"$\pi$",r"$\frac{3\pi}{2}$",r"$2\pi$"],fontsize=20)
     else:
