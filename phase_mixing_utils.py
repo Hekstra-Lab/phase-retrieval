@@ -20,9 +20,9 @@ def get_phase(FT_arr):
     idx = np.isnan(phase)
     phase[idx] = (np.arctan(np.sign(np.imag(FT_arr[idx]))*np.inf)+np.pi/2)/2
 
-    #Remaining cases: 0/0 - set to zero
+    #Remaining cases: 0/0 - set to pi
     idx = np.isnan(phase)
-    phase[idx] = 0
+    phase[idx] = np.pi
 
     return phase
 def mix_FT(mag_arr, phase_arr):
@@ -43,7 +43,7 @@ def mix_FT_arr(mag_arr, phase_arr):
     mag = get_mag(mag_arr)
     phase = get_phase(phase_arr)
 
-    return mag + 1j*phase
+    return mag*(np.cos(phase) + 1j*np.sin(phase))
 
 def phase_intensity_plot(arr, cb=True):
     """
