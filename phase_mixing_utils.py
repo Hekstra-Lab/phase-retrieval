@@ -7,22 +7,15 @@ def get_mag(FT_arr):
     """
     silly fxn, but nice symmetry with less trivial get_phase() function.
     """
-    return np.real(np.sqrt(FT_arr * np.conj(FT_arr)))
+    return np.abs(FT_arr)
 
 def get_phase(FT_arr):
     """
-    does some nifty (unsettling) things to get rid of possible nans from div by 0
-    and returns the phases as real numbers.
+    Gets the complex phases 
     """
-    phase = (np.arctan(np.imag(FT_arr)/(np.real(FT_arr)))+np.pi/2)*2
+    phase = np.arctan2(np.imag(FT_arr),np.real(FT_arr))
 
-    # Deal with case of IM(arr) != 0 and RE(arr) = 0
-    idx = np.isnan(phase)
-    phase[idx] = (np.arctan(np.sign(np.imag(FT_arr[idx]))*np.inf)+np.pi/2)/2
 
-    #Remaining cases: 0/0 - set to pi
-    idx = np.isnan(phase)
-    phase[idx] = np.pi
 
     return phase
 def mix_FT(mag_arr, phase_arr):
@@ -43,7 +36,7 @@ def mix_FT_arr(mag_arr, phase_arr):
     mag = get_mag(mag_arr)
     phase = get_phase(phase_arr)
 
-    return mag*(np.cos(phase) + 1j*np.sin(phase))
+    return mag*np.exp(1j*phase)
 
 def phase_intensity_plot(arr, cb=True):
     """
