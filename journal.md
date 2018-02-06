@@ -8,3 +8,6 @@ What should we use for training data? Lattices? Random images? Images from a dat
 
 Can a neural net learn to do inverse fourier transforms? What is possible without phase information?
 
+What is the appropriate size and structure of a neural neural net for our problem?
+
+Read about direct methods
