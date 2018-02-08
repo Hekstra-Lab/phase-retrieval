@@ -14,17 +14,13 @@ def get_phase(FT_arr):
     """
     Gets the complex phases 
     """
-    phase = np.arctan2(np.imag(FT_arr),np.real(FT_arr))
+    return np.arctan2(np.imag(FT_arr),np.real(FT_arr))
 
-
-
-    return phase
 def mix_FT(mag_arr, phase_arr):
     """
     Performs the fourier transforms and then mixes the phases and magnitudes.
     Calls mix_FT_arr() and Returns a new complex array
     """
-
     return mix_FT_arr(np.fft.fft2(mag_arr),np.fft.fft2(phase_arr))
 
 def mix_FT_arr(mag_arr, phase_arr):
@@ -36,7 +32,6 @@ def mix_FT_arr(mag_arr, phase_arr):
     """
     mag = get_mag(mag_arr)
     phase = get_phase(phase_arr)
-
     return mag*np.exp(1j*phase)
 
 def phase_intensity_plot(arr, cb=True):
@@ -54,10 +49,14 @@ def phase_intensity_plot(arr, cb=True):
     disp_arr = phase_cm(norm(theta))
     disp_arr[:,:,-1] = r/np.max(r)
     fig, ax = plt.subplots(figsize=(10,10))
-    if cb:#Relabel the colorbar without actually rescaling theta to be in [0,2pi]
+
+    # Relabel the colorbar without rescaling theta to be in [0,2pi]
+    if cb:
         cax = ax.imshow(disp_arr,cmap=phase_cm)
         cbar = fig.colorbar(cax,ticks=np.linspace(0,1,5))
-        cbar.ax.set_yticklabels([r"0",r"$\frac{\pi}{2}$",r"$\pi$",r"$\frac{3\pi}{2}$",r"$2\pi$"],fontsize=20)
+        labels = [ r"0", r"$\frac{\pi}{2}$", r"$\pi$",
+                   r"$\frac{3\pi}{2}$", r"$2\pi$"]
+        cbar.ax.set_yticklabels(labels, fontsize=20)
     else:
         ax.imshow(disp_arr, cmap='hsv')
     plt.show()
