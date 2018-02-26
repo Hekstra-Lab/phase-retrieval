@@ -71,7 +71,7 @@ def phase_intensity_plot(arr, ax=None, cb=True, min_alpha = 0, cmap = 'ocean'):
     else:
         ax.imshow(np.flipud(disp_arr), cmap=cmap)
     if ax is None:
-
+	plt.show()
 
 
 from scipy.stats import multivariate_normal
