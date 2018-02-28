@@ -7,6 +7,7 @@ visualizing the phase problem
 
 from scipy.stats import multivariate_normal
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from cmocean.cm import phase as phase_cm
@@ -111,12 +112,16 @@ def phase_intensity_plot(arr, ax=None, cb=True, min_alpha=0.0, cmap='ocean'):
 
     r = get_mag(arr)
     theta = get_phase(arr)
-    theta[theta<0]+=np.pi #correct for neg values of angle so no weird jumps going around 180 deg
-    norm = plt.Normalize()
+    theta[theta<0]+=2*np.pi #correct for neg values of angle so no weird jumps going around 180 deg
+    theta /= 2*np.pi
+    disp_arr = phase_cm(theta)
 
-    disp_arr = phase_cm(norm(theta))
+    # Scale alpha-values between 0 and 1
     disp_arr[:,:,-1] = r/np.max(r)
+
+    # Move minimal alpha value to min_alpha
     disp_arr[:,:,-1] += (1-disp_arr[:,:,-1])*min_alpha
+    
     if ax is None:
         fig, ax = plt.subplots(figsize=(10,10))
     elif ax is not None and cb:
@@ -125,13 +130,14 @@ def phase_intensity_plot(arr, ax=None, cb=True, min_alpha=0.0, cmap='ocean'):
         cmap = phase_cm
     # Relabel the colorbar without rescaling theta to be in [0,2pi]
     if cb:
-        cax = ax.imshow(np.flipud(disp_arr),cmap=cmap)
-        cbar = fig.colorbar(cax,ticks=np.linspace(0,1,5))
+        cax = ax.imshow(np.flipud(disp_arr), cmap=cmap, vmin=0, vmax=1)
+        cbar = fig.colorbar(cax, ticks=np.linspace(0, 1, 5))
         labels = [ r"0", r"$\frac{\pi}{2}$", r"$\pi$",
                    r"$\frac{3\pi}{2}$", r"$2\pi$"]
         cbar.ax.set_yticklabels(labels, fontsize=20)
     else:
-        ax.imshow(np.flipud(disp_arr), cmap=cmap)
+        cax = ax.imshow(np.flipud(disp_arr), cmap=cmap)
+        
     if ax is None:
 	plt.show()
 
