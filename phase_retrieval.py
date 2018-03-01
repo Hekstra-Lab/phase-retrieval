@@ -4,6 +4,9 @@ phase_retrieval.py
 Useful functions and algorithms related to phase-retrieval problems.
 """
 
+import numpy as np
+import phase_mixing_utils
+
 def fourier_MSE(guess, reference): 
     """
     MSE in Fourier domain
