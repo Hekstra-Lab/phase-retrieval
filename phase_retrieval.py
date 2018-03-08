@@ -68,14 +68,14 @@ def inputoutput(mags, guess=None, n_iters=1000, beta=0.3, freq=0.5):
     
     for i in range(n_iters):
         
-        ft = np.fft.fft2(rs_const)
+        ft = np.fft.fftn(rs_const)
         err_track[i] = fourier_MSE(ft, mags)
         
         # Mix known magnitudes and guessed phases
         ks_est = mags*np.exp(1j*phase_mixing_utils.get_phase(ft))
         
         # Inverse fourier transfrom your phase guess with the given magnitudes
-        rs_est = np.fft.ifft2(ks_est)
+        rs_est = np.fft.ifftn(ks_est)
         
         # Impose desired real-space density constraint
         gamma  = np.real(rs_est) > 0 # Mask of negative density
