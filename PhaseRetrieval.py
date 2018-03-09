@@ -1,5 +1,6 @@
 import numpy as np
 import phase_mixing_utils
+from skimage.feature import register_translation
 
 class PhaseRetrieval():
     def __init__(self, fourier_mags, real_space_guess = None):
@@ -177,3 +178,35 @@ class PhaseRetrieval():
         """
         density_mod_func = lambda density, curr_iter : density*(density>0)
         self._iterate(density_mod_func)
+    def calc_real_space_error(self, true_im, plot = True):
+        """
+        Determines the proper rotation and translation for matching the reconstructed real space image to the true one
+
+        inputs
+        --------
+        true_im : ndarry of the original real space image
+        plot : boolean
+            whether to plot the shifted image an and the final error plot.
+        """
+        errs = np.zeros(4)
+        for i in range(4):
+            shift, errs[i], blarg = register_translation(true_im, np.rot90(self.real_space_guess,k=i))
+        n_rot = np.argmin(errs)
+        shift, error, blargh= register_translation(true_im,np.rot90(self.real_space_guess,k=n_rot))
+
+
+        fixed = np.roll(np.rot90(self.real_space_guess,k=n_rot),shift.astype(np.int),axis=(0,1))
+        if plot:
+            plt.imshow(fixed)
+            plt.show()
+            plt.title('orig')
+            plt.imshow(true_im)
+            plt.show()
+
+        self.real_space_err_track = np.zeros(self.rs_track.shape[0])
+        for i,im in enumerate(self.rs_track):
+            shift, self.real_space_err_track[i], diffphase = register_translation(true_im, np.rot90(im,k=n_rot))
+        if plot:
+            plt.plot(error)
+            plt.ylabel('error')
+            plt.show()
