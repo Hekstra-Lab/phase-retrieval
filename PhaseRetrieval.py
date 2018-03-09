@@ -31,15 +31,15 @@ class PhaseRetrieval():
         norm = np.sum(np.abs(self.measured_mags)**2)
         return abs_err/norm
 
-    def _step(self, beta):
+    def _step(self, density_mod_func,curr_iter):
         """
         One iteration of the hybrid input output (HIO) algorithm with given beta value
 
         Parameters
         ----------
 
-        beta : float
-            Update factor for HIO. Pass beta=1 to use error reduction algorithm.
+        denisty_mod_func : callable
+            Function to update pixel values.
 
         Returns
         -------
@@ -60,11 +60,12 @@ class PhaseRetrieval():
         ks_est = self.measured_mags*np.exp(1j*phase_mixing_utils.get_phase(ft))
 
         # Inverse fourier transfrom your phase guess with the given magnitudes
-        rs_non_density_modified = np.real_if_close(np.fft.ifftn(ks_est))
+        rs_non_density_modified = np.real(np.fft.ifftn(ks_est))
 
         # Impose desired real-space density constraint
-        gamma  = np.real(rs_non_density_modified) > 0 # Mask of positive density
-        new_real_space = rs_non_density_modified*gamma - (rs_non_density_modified*(~gamma)*beta)
+        #gamma  = np.real(rs_non_density_modified) > 0 # Mask of positive density
+        #new_real_space = rs_non_density_modified*gamma - (rs_non_density_modified*(~gamma)*beta)
+        new_real_space = density_mod_func(rs_non_density_modified, curr_iter)
         self.real_space_guess = new_real_space
         return fourier_err, rs_non_density_modified, new_real_space
 
@@ -85,14 +86,15 @@ class PhaseRetrieval():
         self.rs_track[0] = self.real_space_guess
 
 
-    def _iterate(self, beta):
-        n_iter = beta.shape[0]
+    def _iterate(self, density_mod_func, n_iter):
         self._initialize_tracking(n_iter)
-        for i,b in enumerate(beta):
-            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(b)
+        for i in range(n_iter):
+            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i)
 
 
-
+    def _input_output_update(self, density,beta,curr_iter):
+            gamma  = np.real(density) > 0 # Mask of positive density
+            return density*gamma - (density*(~gamma)*beta)
 
 
     def hybrid_input_output(self, beta, n_iter = None, freq = 1):
@@ -123,8 +125,15 @@ class PhaseRetrieval():
                     beta[np.random.rand(n_iter) > freq] = 1
             else:
                 raise ValueError("With scalar beta n_iter must be an integer")
+        n_iter = beta.shape[0]
 
-        self._iterate(beta)
+        def f(density, beta,  curr_iter):
+            beta_val = beta[curr_iter]
+            return self._input_output_update(density, beta_val, curr_iter)
+
+        density_mod_func = lambda density, curr_iter: f(density, beta, curr_iter= curr_iter)
+
+        self._iterate(density_mod_func, n_iter)
 
 
     def input_output(self, beta, n_iter = None):
@@ -148,7 +157,8 @@ class PhaseRetrieval():
             else:
                 beta = np.ones(n_iter)*beta
 
-        self._iterate(beta)
+
+        self._iterate(self._input_output_update,n_iter)
 
     def error_reduction(self, n_iter):
         """
@@ -161,5 +171,5 @@ class PhaseRetrieval():
         n_iters : int
             Number of iterations to run algorithm.
         """
-        beta = np.ones(n_iter)
-        self._iterate(beta)
+        density_mod_func = lambda density, curr_iter : density*(density>0)
+        self._iterate(density_mod_func)
