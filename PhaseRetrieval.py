@@ -130,7 +130,7 @@ class PhaseRetrieval():
         def f(density, old_density, beta,  curr_iter, freq):
             beta_val = beta[curr_iter]
             if np.random.rand()<freq:
-                return self._input_output_update(density, old_density, beta_val, curr_iter, freq)
+                return self._input_output_update(density, old_density, beta_val, curr_iter)
             else:
                 return density*(density>0)
 
