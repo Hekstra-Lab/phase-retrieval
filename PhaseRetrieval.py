@@ -97,7 +97,7 @@ class PhaseRetrieval():
             return density*gamma - (density*(~gamma)*beta)
 
 
-    def hybrid_input_output(self, beta, n_iter = None, freq = 1):
+    def hybrid_input_output(self, beta, n_iter = None, freq = 0.5):
         """
         Implementation of the hybrid input-output phase retrieval algorithm from
         Fienup JR, Optics Letters (1978).
