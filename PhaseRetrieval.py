@@ -65,7 +65,7 @@ class PhaseRetrieval():
         # Impose desired real-space density constraint
         #gamma  = np.real(rs_non_density_modified) > 0 # Mask of positive density
         #new_real_space = rs_non_density_modified*gamma - (rs_non_density_modified*(~gamma)*beta)
-        new_real_space = density_mod_func(rs_non_density_modified, curr_iter)
+        new_real_space = density_mod_func(rs_non_density_modified, self.real_space_guess, curr_iter)
         self.real_space_guess = new_real_space
         return fourier_err, rs_non_density_modified, new_real_space
 
@@ -89,12 +89,12 @@ class PhaseRetrieval():
     def _iterate(self, density_mod_func, n_iter):
         self._initialize_tracking(n_iter)
         for i in range(n_iter):
-            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i)
+            self.err_track[i], self.ndm_track[i], self.rs_track[i+1] = self._step(density_mod_func, i)
 
 
-    def _input_output_update(self, density,beta,curr_iter):
-            gamma  = np.real(density) > 0 # Mask of positive density
-            return density*gamma - (density*(~gamma)*beta)
+    def _input_output_update(self, density,old_density, beta, curr_iter):
+            gamma  = density > 0 # Mask of positive density
+            return gamma*density - (~gamma)*(old_density-density*beta)
 
 
     def hybrid_input_output(self, beta, n_iter = None, freq = 0.5):
@@ -127,16 +127,16 @@ class PhaseRetrieval():
                 raise ValueError("With scalar beta n_iter must be an integer")
         n_iter = beta.shape[0]
 
-        def f(density, beta,  curr_iter):
+        def f(density, old_density, beta,  curr_iter):
             beta_val = beta[curr_iter]
-            return self._input_output_update(density, beta_val, curr_iter)
+            return self._input_output_update(density, old_density, beta_val, curr_iter)
 
-        density_mod_func = lambda density, curr_iter: f(density, beta, curr_iter= curr_iter)
+        density_mod_func = lambda density, old_density, curr_iter: f(density, old_density, beta, curr_iter= curr_iter)
 
         self._iterate(density_mod_func, n_iter)
 
 
-    def input_output(self, beta, n_iter = None):
+    def input_output(self, beta=0.7, n_iter = None):
         """
         Implementation of the input-output phase retrieval algorithm from
         Fienup JR, Optics Letters (1978).
@@ -151,14 +151,7 @@ class PhaseRetrieval():
         n_iters : int
             Number of iterations to run algorithm. Not used if beta is an array.
         """
-        if np.isscalar(beta):
-            if n_iter is None:
-                raise ValueError("With scale beta n_iter cannot equal none")
-            else:
-                beta = np.ones(n_iter)*beta
-
-
-        self._iterate(self._input_output_update,n_iter)
+        self.hybrid_input_output(beta,n_iter, freq=1)
 
     def error_reduction(self, n_iter):
         """
@@ -172,4 +165,4 @@ class PhaseRetrieval():
             Number of iterations to run algorithm.
         """
         density_mod_func = lambda density, curr_iter : density*(density>0)
-        self._iterate(density_mod_func)
+        self._iterate(density_mod_func,n_iter)
