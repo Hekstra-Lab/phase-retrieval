@@ -65,7 +65,7 @@ class PhaseRetrieval():
         for i,im in enumerate(self.rs_track):
             shift, self.real_space_err_track[i], diffphase = register_translation(true_im, np.rot90(im,k=n_rot))
         if plot:
-            plt.plot(error)
+            plt.plot(self.real_space_err_track)
             plt.ylabel('error')
             plt.show()
 
