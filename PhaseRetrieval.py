@@ -69,7 +69,7 @@ class PhaseRetrieval():
             plt.ylabel('error')
             plt.show()
 
-    def _step(self, density_mod_func, curr_iter, padscale=1.0, **kwargs):
+    def _step(self, density_mod_func, curr_iter, **kwargs):
         """
         One iteration of the hybrid input output (HIO) algorithm with given beta value
 
@@ -247,7 +247,8 @@ class PhaseRetrieval():
             raise ValueError("Number of iterations must be specified")
 
         # Run CHIO for n_iter iterations
-        self.iterate(self._CHIOupdate, n_iter, alpha=alpha, beta=beta, freq=freq)
+        self.iterate(self._CHIOupdate, n_iter, alpha=alpha, beta=beta,
+                     freq=freq)
         return
     
     def BoundedCHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
@@ -271,5 +272,6 @@ class PhaseRetrieval():
             raise ValueError("Number of iterations must be specified")
 
         # Run Bounded CHIO for n_iter iterations
-        self.iterate(self._BoundedCHIOupdate, n_iter, alpha=alpha, beta=beta, freq=freq)
+        self.iterate(self._BoundedCHIOupdate, n_iter, alpha=alpha,
+                     beta=beta, freq=freq)
         return
