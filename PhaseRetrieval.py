@@ -1,9 +1,14 @@
 import numpy as np
 import phase_mixing_utils
 from skimage.feature import register_translation
+import matplotlib.pyplot as plt
 
 class PhaseRetrieval():
-    def __init__(self, fourier_mags, real_space_guess = None):
+    """
+    Class for reconstructing real-space images from Fourier magnitudes
+    """
+
+    def __init__(self, fourier_mags, real_space_guess=None):
         self.measured_mags = fourier_mags
         self.shape = self.measured_mags.shape
         if real_space_guess is not None:
@@ -11,7 +16,6 @@ class PhaseRetrieval():
         else:
             self.real_space_guess = np.random.random_sample(self.shape)
 
-    # Methods
     def fourier_MSE(self, guess):
         """
         MSE in Fourier domain
@@ -32,153 +36,7 @@ class PhaseRetrieval():
         norm = np.sum(np.abs(self.measured_mags)**2)
         return abs_err/norm
 
-    def _step(self, density_mod_func,curr_iter):
-        """
-        One iteration of the hybrid input output (HIO) algorithm with given beta value
-
-        Parameters
-        ----------
-
-        denisty_mod_func : callable
-            Function to update pixel values.
-
-        Returns
-        -------
-        fourier_err : float
-            Mean squared error in fourier domain - see fourier_MSE above
-
-        rs_non_density_modified : ndarray
-            Updated real space guess without any density modificaiton applied
-
-        new_real_space : nd_array
-
-        """
-
-        ft = np.fft.fftn(self.real_space_guess)
-        fourier_err = self.fourier_MSE(ft)
-
-        # Mix known magnitudes and guessed phases
-        ks_est = self.measured_mags*np.exp(1j*phase_mixing_utils.get_phase(ft))
-
-        # Inverse fourier transfrom your phase guess with the given magnitudes
-        rs_non_density_modified = np.real(np.fft.ifftn(ks_est))
-
-        # Impose desired real-space density constraint
-        #gamma  = np.real(rs_non_density_modified) > 0 # Mask of positive density
-        #new_real_space = rs_non_density_modified*gamma - (rs_non_density_modified*(~gamma)*beta)
-        new_real_space = density_mod_func(rs_non_density_modified, self.real_space_guess, curr_iter)
-        self.real_space_guess = new_real_space.copy()
-        return fourier_err, rs_non_density_modified, new_real_space.copy()
-
-
-    def _initialize_tracking(self, n_iter):
-        """
-        Set up tracking arrays for an iterative algorithm.
-
-        Parameters
-        ----------
-
-        n_iter : int
-            Number of density modification steps to take.
-        """
-        self.ndm_track = np.zeros((n_iter,)+self.shape)
-        self.rs_track = np.zeros((n_iter+1,)+self.shape)
-        self.err_track = np.zeros(n_iter)
-        self.rs_track[0] = self.real_space_guess
-
-
-    def _iterate(self, density_mod_func, n_iter):
-        self._initialize_tracking(n_iter)
-        for i in range(n_iter):
-            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i)
-
-
-    def _input_output_update(self, density, old_density, beta, curr_iter):
-            gamma  = np.real(density) > 0 # Mask of positive density
-            return density*gamma - (~gamma)*(old_density - beta*density)
-
-
-    def hybrid_input_output(self, beta, n_iter = None, freq = 1):
-        """
-        Implementation of the hybrid input-output phase retrieval algorithm from
-        Fienup JR, Optics Letters (1978).
-
-        Parameters
-        ----------
-        beta : np.ndarray of floats or single float
-            Scaling factor for updates to negative real-space components in iteration
-                of hybrid input-output algorithm. If an ndarray is passed then the beta values
-                will be iterated over. A single float value will create beta = np.ones(n_iter)*beta
-                with with individual elements set to one at a rate corresponding to the freq value.
-        n_iters : int
-            Number of iterations to run algorithm
-        freq : float
-            Switching frequency between input-output updates to real-space density and
-            error-reduction updates. If 1.0, input-output updates are always used. If
-            0.0, negative real-space values are zeroed out at every iteration. (Default
-            value is 0.5)
-        """
-        if np.isscalar(beta):
-            if n_iter is None:
-                raise ValueError("With scalar beta n_iter must be an integer")
-            elif np.int(n_iter) == n_iter:
-                    beta = np.ones(n_iter)*beta
-                    beta[np.random.rand(n_iter) > freq] = 1
-            else:
-                raise ValueError("With scalar beta n_iter must be an integer")
-        n_iter = beta.shape[0]
-
-        def f(density, old_density, beta,  curr_iter, freq):
-            beta_val = beta[curr_iter]
-            if np.random.rand()<freq:
-                return self._input_output_update(density, old_density, beta_val, curr_iter)
-            else:
-                return density*(density>0)
-
-
-        density_mod_func = lambda density, old_density, curr_iter: f(density, old_density, beta, curr_iter= curr_iter,freq=freq)
-
-        self._iterate(density_mod_func, n_iter)
-
-
-    def input_output(self, beta, n_iter = None):
-        """
-        Implementation of the input-output phase retrieval algorithm from
-        Fienup JR, Optics Letters (1978).
-
-        Parameters
-        ----------
-        beta : np.ndarray of floats or single float
-            Scaling factor for updates to negative real-space components in iteration
-                of hybrid input-output algorithm. If an ndarray isf passed then the beta values
-                will be iterated over. A single float value will create beta = np.ones(n_iter)*beta
-
-        n_iters : int
-            Number of iterations to run algorithm. Not used if beta is an array.
-        """
-        if np.isscalar(beta):
-            if n_iter is None:
-                raise ValueError("With scale beta n_iter cannot equal none")
-            else:
-                beta = np.ones(n_iter)*beta
-
-
-        self._iterate(self._input_output_update,n_iter)
-
-    def error_reduction(self, n_iter):
-        """
-        Implementation of the input-output phase retrieval algorithm from
-        Fienup JR, Optics Letters (1978).
-
-        This corresponds to the input-output methods with all beta values equal to one.
-        Parameters.
-        ----------
-        n_iters : int
-            Number of iterations to run algorithm.
-        """
-        density_mod_func = lambda density, curr_iter : density*(density>0)
-        self._iterate(density_mod_func)
-    def calc_real_space_error(self, true_im, plot = True):
+    def calc_real_space_error(self, true_im, plot=True):
         """
         Determines the proper rotation and translation for matching the reconstructed real space image to the true one
 
@@ -210,3 +68,208 @@ class PhaseRetrieval():
             plt.plot(error)
             plt.ylabel('error')
             plt.show()
+
+    def _step(self, density_mod_func, curr_iter, padscale=1.0, **kwargs):
+        """
+        One iteration of the hybrid input output (HIO) algorithm with given beta value
+
+        Parameters
+        ----------
+        denisty_mod_func : callable
+            Function to update pixel values.
+
+        Returns
+        -------
+        fourier_err : float
+            Mean squared error in fourier domain - see fourier_MSE above
+
+        rs_non_density_modified : ndarray
+            Updated real space guess without any density modificaiton applied
+
+        new_real_space : nd_array
+        """
+        ft = np.fft.fftn(self.real_space_guess)
+        fourier_err = self.fourier_MSE(ft)
+
+        # Mix known magnitudes and guessed phases
+        ks_est = self.measured_mags*np.exp(1j*phase_mixing_utils.get_phase(ft))
+
+        # Inverse fourier transfrom your phase guess with the given magnitudes
+        rs_non_density_modified = np.real(np.fft.ifftn(ks_est))
+
+        # Impose desired real-space density constraint
+        # gamma  = np.real(rs_non_density_modified) > 0 # Mask of positive density
+        # new_real_space = rs_non_density_modified*gamma - (rs_non_density_modified*(~gamma)*beta)
+        new_real_space = density_mod_func(rs_non_density_modified, self.real_space_guess, curr_iter, **kwargs)
+        self.real_space_guess = new_real_space.copy()
+        return fourier_err, rs_non_density_modified, new_real_space.copy()
+
+    def _initialize_tracking(self, n_iter):
+        """
+        Set up tracking arrays for an iterative algorithm.
+
+        Parameters
+        ----------
+        n_iter : int
+            Number of density modification steps to take.
+        """
+        self.ndm_track = np.zeros((n_iter,)+self.shape)
+        self.rs_track = np.zeros((n_iter+1,)+self.shape)
+        self.err_track = np.zeros(n_iter)
+        self.rs_track[0] = self.real_space_guess
+        return
+
+    def iterate(self, density_mod_func, n_iter, **kwargs):
+        """
+        Run iterations of phase retrieval algorithm specified by the
+        density modification function
+        """
+        self._initialize_tracking(n_iter)
+        for i in range(n_iter):
+            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i, **kwargs)
+        return
+            
+    def _ERupdate(self, density, old_density, curr_iter):
+        return density*(density > 0)
+
+    def _IOupdate(self, density, old_density, curr_iter, beta):
+        gamma = density > 0
+        return density*gamma - (~gamma*(old_density - (beta*density)))
+
+    def _HIOupdate(self, density, old_density, curr_iter, beta, freq):
+        # Input-Output
+        if np.random.rand() < freq:
+            return self._IOupdate(density, old_density, curr_iter, beta)
+        # Error Reduction
+        else:
+            return self._ERupdate(density, old_density, curr_iter)
+
+    def _CHIOupdate(self, density, old_density, curr_iter, alpha, beta, freq):
+        gamma = density>alpha*old_density
+        delta = (0<density)*(~gamma)
+        negatives = ~(gamma+delta)
+        # CHIO
+        if np.random.rand() < freq:
+            return density*gamma + delta*(old_density-((1-alpha)/alpha)*density) + (old_density - beta*density)*negatives
+        # Error Reduction
+        else:
+            return self._ERupdate(density, old_density, curr_iter)
+
+    def _BoundedCHIOupdate(self, density, old_density, curr_iter, alpha, beta, freq):
+        gamma = density>alpha*old_density
+        delta = (0<density)*(~gamma)
+        negatives = ~(gamma+delta)
+        # Bounded CHIO
+        if np.random.rand() < freq:
+            chio = density*gamma + delta*(old_density-((1-alpha)/alpha)*density) + (old_density - beta*density)*negatives
+            return  chio*(np.abs(chio)<1) + (np.abs(chio)>1)
+        # Error Reduction
+        else:
+            return self._ERupdate(density, old_density, curr_iter)
+        
+    def ErrorReduction(self, n_iter=None):
+        """
+        Implementation of the error reduction phase retrieval algorithm 
+        from Fienup JR, Optics Letters (1978).
+
+        Parameters
+        ----------
+        n_iters : int
+            Number of iterations to run algorithm
+        """
+        if n_iter is None:
+            raise ValueError("Number of iterations must be specified")
+
+        # Run error reduction for n_iter iterations
+        self.iterate(self._ERupdate, n_iter)
+        return
+
+    def InputOutput(self, beta=0.7, n_iter=None):
+        """
+        Implementation of the input-output phase retrieval algorithm 
+        from Fienup JR, Optics Letters (1978).
+
+        Parameters
+        ----------
+        n_iters : int
+            Number of iterations to run algorithm
+        beta : float
+            Scaling coefficient for modifying negative real-space 
+            density
+        """
+        if n_iter is None:
+            raise ValueError("Number of iterations must be specified")
+
+        # Run input-output for n_iter iterations
+        self.iterate(self._IOupdate, n_iter, beta=beta)
+        return
+
+    def HIO(self, beta=0.7, freq=0.95, n_iter=None):
+        """
+        Implementation of the hybrid input-output phase retrieval 
+        algorithm from Fienup JR, Optics Letters (1978).
+
+        Parameters
+        ----------
+        beta : float
+            Scaling coefficient for modifying negative real-space 
+            density
+        freq : float
+            Frequency with which to use input-output updates
+        n_iters : int
+            Number of iterations to run algorithm
+        """
+        if n_iter is None:
+            raise ValueError("Number of iterations must be specified")
+
+        # Run HIO for n_iter iterations
+        self.iterate(self._HIOupdate, n_iter, beta=beta, freq=freq)
+        return
+
+    def CHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
+        """
+        Implementation of the continuous hybrid input-output phase 
+        retrieval algorithm 
+
+        Parameters
+        ----------
+        alpha : float
+            Scaling coefficient for modifying small real-space density
+        beta : float
+            Scaling coefficient for modifying negative real-space 
+            density
+        freq : float
+            Frequency with which to use input-output updates
+        n_iters : int
+            Number of iterations to run algorithm
+        """
+        if n_iter is None:
+            raise ValueError("Number of iterations must be specified")
+
+        # Run CHIO for n_iter iterations
+        self.iterate(self._CHIOupdate, n_iter, alpha=alpha, beta=beta, freq=freq)
+        return
+    
+    def BoundedCHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
+        """
+        Implementation of the continuous hybrid input-output phase 
+        retrieval algorithm 
+
+        Parameters
+        ----------
+        alpha : float
+            Scaling coefficient for modifying small real-space density
+        beta : float
+            Scaling coefficient for modifying negative real-space 
+            density
+        freq : float
+            Frequency with which to use input-output updates
+        n_iters : int
+            Number of iterations to run algorithm
+        """
+        if n_iter is None:
+            raise ValueError("Number of iterations must be specified")
+
+        # Run Bounded CHIO for n_iter iterations
+        self.iterate(self._BoundedCHIOupdate, n_iter, alpha=alpha, beta=beta, freq=freq)
+        return
