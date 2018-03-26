@@ -99,7 +99,7 @@ class PhaseRetrieval():
 
         # Impose desired real-space density constraint
         # gamma  = np.real(rs_non_density_modified) > 0 # Mask of positive density
-        # new_real_space = rs_non_density_modified*gamma - (rs_non_density_modified*(~gamma)*beta)
+        # new_real_space = rs_non_density_modified*gamma - (rs_non_density_Modified*(~gamma)*beta)
         new_real_space = density_mod_func(rs_non_density_modified, self.real_space_guess, curr_iter, **kwargs)
         self.real_space_guess = new_real_space.copy()
         return fourier_err, rs_non_density_modified, new_real_space.copy()
