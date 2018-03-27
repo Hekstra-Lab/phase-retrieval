@@ -39,14 +39,15 @@ def simple_gaussians(N, r, size=128):
     #print means
     return uc
 
-os.makedirs("gaussian_data", exist_ok=True)
+if __name__=="__main__":
+    os.makedirs("gaussian_data", exist_ok=True)
 
-for N in range(10):
-    mags = np.zeros((1000,128,128))
-    ims = np.zeros((1000,128,128))
-    for i in range(1000):
-        n = np.random.randint(1,51)
-        ims[i] = normalize_image(simple_gaussians(n,10))
-        mags[i] = np.abs(np.fft.fft2(ims[i]))
-    np.save("gaussian_data/mags{}.npy".format(N),mags)
-    np.save("gaussian_data/imgs{}.npy".format(N),ims)
+    for N in range(10):
+        mags = np.zeros((1000,128,128))
+        ims = np.zeros((1000,128,128))
+        for i in range(1000):
+            n = np.random.randint(1,51)
+            ims[i] = normalize_image(simple_gaussians(n,10))
+            mags[i] = np.abs(np.fft.fft2(ims[i]))
+        np.save("gaussian_data/mags{}.npy".format(N),mags)
+        np.save("gaussian_data/imgs{}.npy".format(N),ims)
