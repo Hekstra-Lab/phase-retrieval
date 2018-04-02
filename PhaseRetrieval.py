@@ -2,6 +2,10 @@ import numpy as np
 import phase_mixing_utils
 from skimage.feature import register_translation
 import matplotlib.pyplot as plt
+import sys
+from fasta import fasta, plots, Convergence
+from fasta.linalg import LinearMap
+from skimage.restoration import denoise_tv_chambolle
 
 class PhaseRetrieval():
     """
@@ -68,7 +72,7 @@ class PhaseRetrieval():
             plt.plot(self.real_space_err_track)
             plt.ylabel('error')
             plt.show()
-            
+
     def _step(self, density_mod_func, curr_iter, **kwargs):
         """
         One iteration of the hybrid input output (HIO) algorithm with given beta value
@@ -119,16 +123,21 @@ class PhaseRetrieval():
         self.rs_track[0] = self.real_space_guess
         return
 
-    def iterate(self, density_mod_func, n_iter, **kwargs):
+    def iterate(self, density_mod_func, n_iter,prog_bar =False, **kwargs):
         """
         Run iterations of phase retrieval algorithm specified by the
         density modification function
         """
         self._initialize_tracking(n_iter)
         for i in range(n_iter):
-            self.err_track[i], self.ndm_track[i], self.rs_track[i+1] = self._step(density_mod_func, i, **kwargs)
+            if prog_bar:
+                sys.stdout.write('\r')
+                eq = int(np.ceil(np.true_divide(i*100,n_iter*5)))
+                sys.stdout.write("[{:20s}] {}/{} steps  ".format('='*eq, i+1,n_iter))
+                sys.stdout.flush()
+            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i, **kwargs)
         return
-            
+
     def _ERupdate(self, density, old_density, curr_iter):
         return density*(density > 0)
 
@@ -166,10 +175,10 @@ class PhaseRetrieval():
         # Error Reduction
         else:
             return self._ERupdate(density, old_density, curr_iter)
-        
-    def ErrorReduction(self, n_iter=None):
+
+    def ErrorReduction(self, n_iter=None,**kwargs):
         """
-        Implementation of the error reduction phase retrieval algorithm 
+        Implementation of the error reduction phase retrieval algorithm
         from Fienup JR, Optics Letters (1978).
 
         Parameters
@@ -181,12 +190,12 @@ class PhaseRetrieval():
             raise ValueError("Number of iterations must be specified")
 
         # Run error reduction for n_iter iterations
-        self.iterate(self._ERupdate, n_iter)
+        self.iterate(self._ERupdate, n_iter,**kwargs)
         return
 
-    def InputOutput(self, beta=0.7, n_iter=None):
+    def InputOutput(self, beta=0.7, n_iter=None,**kwargs):
         """
-        Implementation of the input-output phase retrieval algorithm 
+        Implementation of the input-output phase retrieval algorithm
         from Fienup JR, Optics Letters (1978).
 
         Parameters
@@ -194,25 +203,25 @@ class PhaseRetrieval():
         n_iters : int
             Number of iterations to run algorithm
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         """
         if n_iter is None:
             raise ValueError("Number of iterations must be specified")
 
         # Run input-output for n_iter iterations
-        self.iterate(self._IOupdate, n_iter, beta=beta)
+        self.iterate(self._IOupdate, n_iter, beta=beta,**kwargs)
         return
 
-    def HIO(self, beta=0.7, freq=0.95, n_iter=None):
+    def HIO(self, beta=0.7, freq=0.95, n_iter=None,**kwargs):
         """
-        Implementation of the hybrid input-output phase retrieval 
+        Implementation of the hybrid input-output phase retrieval
         algorithm from Fienup JR, Optics Letters (1978).
 
         Parameters
         ----------
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         freq : float
             Frequency with which to use input-output updates
@@ -223,20 +232,20 @@ class PhaseRetrieval():
             raise ValueError("Number of iterations must be specified")
 
         # Run HIO for n_iter iterations
-        self.iterate(self._HIOupdate, n_iter, beta=beta, freq=freq)
+        self.iterate(self._HIOupdate, n_iter, beta=beta, freq=freq,**kwargs)
         return
 
-    def CHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
+    def CHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None,**kwargs):
         """
-        Implementation of the continuous hybrid input-output phase 
-        retrieval algorithm 
+        Implementation of the continuous hybrid input-output phase
+        retrieval algorithm
 
         Parameters
         ----------
         alpha : float
             Scaling coefficient for modifying small real-space density
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         freq : float
             Frequency with which to use input-output updates
@@ -248,20 +257,20 @@ class PhaseRetrieval():
 
         # Run CHIO for n_iter iterations
         self.iterate(self._CHIOupdate, n_iter, alpha=alpha, beta=beta,
-                     freq=freq)
+                     freq=freq,**kwargs)
         return
-    
-    def BoundedCHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
+
+    def BoundedCHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None,**kwargs):
         """
-        Implementation of the continuous hybrid input-output phase 
-        retrieval algorithm 
+        Implementation of the continuous hybrid input-output phase
+        retrieval algorithm
 
         Parameters
         ----------
         alpha : float
             Scaling coefficient for modifying small real-space density
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         freq : float
             Frequency with which to use input-output updates
@@ -273,5 +282,50 @@ class PhaseRetrieval():
 
         # Run Bounded CHIO for n_iter iterations
         self.iterate(self._BoundedCHIOupdate, n_iter, alpha=alpha,
-                     beta=beta, freq=freq)
+                     beta=beta, freq=freq,**kwargs)
         return
+    #======== RED stuff ====
+
+    def _f(self, Z):
+        return .5 * np.linalg.norm((np.abs(Z) - self.measured_mags),ord='fro')**2
+    def _sub_grad_f(self, Z):
+        """
+        Subgradient function as in prDeep paper.
+        params
+        -----
+        Z :
+        """
+        out = Z-self.measured_mags*Z/abs(Z)
+        return out
+    def _g(self,Z):
+        """
+        This function is only used if evaluate_object = True, it is not necessary for the optimization
+        """
+        x = Z.ravel()
+        return .5*self.proximal_lambda*x.T @ (x-self.density_modifier(x))
+
+
+    def _proxg(self, Z, t):
+        """
+        compute the proximal of g for RED.
+
+        """
+        x = np.real(Z)
+        for i in range(self.proximal_iters):
+            x = (1/(1+t*self.proximal_lambda))*(Z+t*self.proximal_lambda*self.density_modifier(x))
+        return x
+
+    def prRED(self,density_modifier = None, max_iter = 100,accelerate=True, evaluate_objective=False,
+                            verbose=True, proximal_iters=1,prox_lambda=.01):
+        if not density_modifier:
+            self.density_modifier = lambda x: denoise_tv_chambolle(np.real(x))
+        else:
+            self.density_modifier = density_modifier
+        self.proximal_iters=proximal_iters
+        self.proximal_lambda=prox_lambda
+        linear_map = LinearMap(np.fft.fftn,np.fft.ifftn,Vshape=self.shape,Wshape=self.shape)
+        self.fasta_solver = fasta(A = linear_map, f= self._f, gradf=self._sub_grad_f,g=self._g,proxg=self._proxg, x0=self.real_space_guess,max_iters=max_iter,
+            accelerate=accelerate, # Other options: plain, adapative
+                            evaluate_objective=evaluate_objective, #evaluate objective function at every step, slows it down
+                            verbose = verbose)
+        self.real_space_guess=self.fasta_solver.solution
