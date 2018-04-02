@@ -2,6 +2,7 @@ import numpy as np
 import phase_mixing_utils
 from skimage.feature import register_translation
 import matplotlib.pyplot as plt
+import sys
 
 class PhaseRetrieval():
     """
@@ -119,16 +120,21 @@ class PhaseRetrieval():
         self.rs_track[0] = self.real_space_guess
         return
 
-    def iterate(self, density_mod_func, n_iter, **kwargs):
+    def iterate(self, density_mod_func, n_iter,prog_bar =False, **kwargs):
         """
         Run iterations of phase retrieval algorithm specified by the
         density modification function
         """
         self._initialize_tracking(n_iter)
         for i in range(n_iter):
+            if prog_bar:
+                sys.stdout.write('\r')
+                eq = int(np.ceil(np.true_divide(i*100,n_iter*5)))
+                sys.stdout.write("[{:20s}] {}/{} steps  ".format('='*eq, i+1,n_iter))
+                sys.stdout.flush()
             self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i, **kwargs)
         return
-            
+
     def _ERupdate(self, density, old_density, curr_iter):
         return density*(density > 0)
 
@@ -166,10 +172,10 @@ class PhaseRetrieval():
         # Error Reduction
         else:
             return self._ERupdate(density, old_density, curr_iter)
-        
-    def ErrorReduction(self, n_iter=None):
+
+    def ErrorReduction(self, n_iter=None,**kwargs):
         """
-        Implementation of the error reduction phase retrieval algorithm 
+        Implementation of the error reduction phase retrieval algorithm
         from Fienup JR, Optics Letters (1978).
 
         Parameters
@@ -181,12 +187,12 @@ class PhaseRetrieval():
             raise ValueError("Number of iterations must be specified")
 
         # Run error reduction for n_iter iterations
-        self.iterate(self._ERupdate, n_iter)
+        self.iterate(self._ERupdate, n_iter,**kwargs)
         return
 
-    def InputOutput(self, beta=0.7, n_iter=None):
+    def InputOutput(self, beta=0.7, n_iter=None,**kwargs):
         """
-        Implementation of the input-output phase retrieval algorithm 
+        Implementation of the input-output phase retrieval algorithm
         from Fienup JR, Optics Letters (1978).
 
         Parameters
@@ -194,25 +200,25 @@ class PhaseRetrieval():
         n_iters : int
             Number of iterations to run algorithm
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         """
         if n_iter is None:
             raise ValueError("Number of iterations must be specified")
 
         # Run input-output for n_iter iterations
-        self.iterate(self._IOupdate, n_iter, beta=beta)
+        self.iterate(self._IOupdate, n_iter, beta=beta,**kwargs)
         return
 
-    def HIO(self, beta=0.7, freq=0.95, n_iter=None):
+    def HIO(self, beta=0.7, freq=0.95, n_iter=None,**kwargs):
         """
-        Implementation of the hybrid input-output phase retrieval 
+        Implementation of the hybrid input-output phase retrieval
         algorithm from Fienup JR, Optics Letters (1978).
 
         Parameters
         ----------
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         freq : float
             Frequency with which to use input-output updates
@@ -223,20 +229,20 @@ class PhaseRetrieval():
             raise ValueError("Number of iterations must be specified")
 
         # Run HIO for n_iter iterations
-        self.iterate(self._HIOupdate, n_iter, beta=beta, freq=freq)
+        self.iterate(self._HIOupdate, n_iter, beta=beta, freq=freq,**kwargs)
         return
 
-    def CHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
+    def CHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None,**kwargs):
         """
-        Implementation of the continuous hybrid input-output phase 
-        retrieval algorithm 
+        Implementation of the continuous hybrid input-output phase
+        retrieval algorithm
 
         Parameters
         ----------
         alpha : float
             Scaling coefficient for modifying small real-space density
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         freq : float
             Frequency with which to use input-output updates
@@ -248,20 +254,20 @@ class PhaseRetrieval():
 
         # Run CHIO for n_iter iterations
         self.iterate(self._CHIOupdate, n_iter, alpha=alpha, beta=beta,
-                     freq=freq)
+                     freq=freq,**kwargs)
         return
-    
-    def BoundedCHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None):
+
+    def BoundedCHIO(self, alpha=0.4, beta=0.7, freq=0.95, n_iter=None,**kwargs):
         """
-        Implementation of the continuous hybrid input-output phase 
-        retrieval algorithm 
+        Implementation of the continuous hybrid input-output phase
+        retrieval algorithm
 
         Parameters
         ----------
         alpha : float
             Scaling coefficient for modifying small real-space density
         beta : float
-            Scaling coefficient for modifying negative real-space 
+            Scaling coefficient for modifying negative real-space
             density
         freq : float
             Frequency with which to use input-output updates
@@ -273,5 +279,5 @@ class PhaseRetrieval():
 
         # Run Bounded CHIO for n_iter iterations
         self.iterate(self._BoundedCHIOupdate, n_iter, alpha=alpha,
-                     beta=beta, freq=freq)
+                     beta=beta, freq=freq,**kwargs)
         return
