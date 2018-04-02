@@ -3,6 +3,9 @@ import phase_mixing_utils
 from skimage.feature import register_translation
 import matplotlib.pyplot as plt
 import sys
+from fasta import fasta, plots, Convergence
+from fasta.linalg import LinearMap
+from skimage.restoration import denoise_tv_chambolle
 
 class PhaseRetrieval():
     """
@@ -281,3 +284,48 @@ class PhaseRetrieval():
         self.iterate(self._BoundedCHIOupdate, n_iter, alpha=alpha,
                      beta=beta, freq=freq,**kwargs)
         return
+    #======== RED stuff ====
+
+    def _f(self, Z):
+        return .5 * np.linalg.norm((np.abs(Z) - self.measured_mags),ord='fro')**2
+    def _sub_grad_f(self, Z):
+        """
+        Subgradient function as in prDeep paper.
+        params
+        -----
+        Z :
+        """
+        out = Z-self.measured_mags*Z/abs(Z)
+        return out
+    def _g(self,Z):
+        """
+        This function is only used if evaluate_object = True, it is not necessary for the optimization
+        """
+        x = Z.ravel()
+        return .5*self.proximal_lambda*x.T @ (x-self.density_modifier(x))
+
+
+    def _proxg(self, Z, t):
+        """
+        compute the proximal of g for RED.
+
+        """
+        x = np.real(Z)
+        for i in range(self.proximal_iters):
+            x = (1/(1+t*self.proximal_lambda))*(Z+t*self.proximal_lambda*self.density_modifier(x))
+        return x
+
+    def prRED(self,density_modifier = None, max_iter = 100,accelerate=True, evaluate_objective=False,
+                            verbose=True, proximal_iters=1,prox_lambda=.01):
+        if not density_modifier:
+            self.density_modifier = lambda x: denoise_tv_chambolle(np.real(x))
+        else:
+            self.density_modifier = density_modifier
+        self.proximal_iters=proximal_iters
+        self.proximal_lambda=prox_lambda
+        linear_map = LinearMap(np.fft.fftn,np.fft.ifftn,Vshape=self.shape,Wshape=self.shape)
+        self.fasta_solver = fasta(A = linear_map, f= self._f, gradf=self._sub_grad_f,g=self._g,proxg=self._proxg, x0=self.real_space_guess,max_iters=max_iter,
+            accelerate=accelerate, # Other options: plain, adapative
+                            evaluate_objective=evaluate_objective, #evaluate objective function at every step, slows it down
+                            verbose = verbose)
+        self.real_space_guess=self.fasta_solver.solution
