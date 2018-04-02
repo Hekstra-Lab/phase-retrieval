@@ -135,7 +135,7 @@ class PhaseRetrieval():
                 eq = int(np.ceil(np.true_divide(i*100,n_iter*5)))
                 sys.stdout.write("[{:20s}] {}/{} steps  ".format('='*eq, i+1,n_iter))
                 sys.stdout.flush()
-            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i, **kwargs)
+            self.err_track[i], self.ndm_track[i], self.rs_track[i+1] = self._step(density_mod_func, i, **kwargs)
         return
 
     def _ERupdate(self, density, old_density, curr_iter):
