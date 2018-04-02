@@ -21,3 +21,5 @@
 *.cb2
 *.pyc
 gaussian_data
+movie
+*.mp4
