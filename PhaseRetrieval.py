@@ -68,7 +68,7 @@ class PhaseRetrieval():
             plt.plot(self.real_space_err_track)
             plt.ylabel('error')
             plt.show()
-
+            
     def _step(self, density_mod_func, curr_iter, **kwargs):
         """
         One iteration of the hybrid input output (HIO) algorithm with given beta value
@@ -126,7 +126,7 @@ class PhaseRetrieval():
         """
         self._initialize_tracking(n_iter)
         for i in range(n_iter):
-            self.err_track[i], self.ndm_track[i], self.rs_track[i] = self._step(density_mod_func, i, **kwargs)
+            self.err_track[i], self.ndm_track[i], self.rs_track[i+1] = self._step(density_mod_func, i, **kwargs)
         return
             
     def _ERupdate(self, density, old_density, curr_iter):
