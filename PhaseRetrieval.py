@@ -19,7 +19,8 @@ class PhaseRetrieval():
             self.real_space_guess = real_space_guess
         else:
             self.real_space_guess = np.random.random_sample(self.shape)
-
+        self.tracking =False
+        self.moves = []
     def fourier_MSE(self, guess):
         """
         MSE in Fourier domain
@@ -117,25 +118,38 @@ class PhaseRetrieval():
         n_iter : int
             Number of density modification steps to take.
         """
-        self.ndm_track = np.zeros((n_iter,)+self.shape)
-        self.rs_track = np.zeros((n_iter+1,)+self.shape)
-        self.err_track = np.zeros(n_iter)
-        self.rs_track[0] = self.real_space_guess
+        if not self.tracking:
+            self.tracking = True
+            self.ndm_track = np.zeros((n_iter,)+self.shape)
+            self.rs_track = np.zeros((n_iter+1,)+self.shape)
+            self.err_track = np.zeros(n_iter)
+            self.rs_track[0] = self.real_space_guess
+            self.step_name = []
+            self.total_steps = 0
+        else:
+            extend_2d = np.zeros([n_iter,*self.rs_track.shape[1:]])
+            extend_1d = np.zeros(n_iter)
+            self.ndm_track = np.concatenate((self.ndm_track,extend_2d),axis=0)
+            self.rs_track = np.concatenate((self.rs_track,extend_2d),axis=0)
+            self.err_track = np.concatenate((self.err_track,extend_1d),axis=0)
         return
 
-    def iterate(self, density_mod_func, n_iter,prog_bar =False, **kwargs):
+    def iterate(self, density_mod_func, n_iter,prog_bar =False, move_name=None, **kwargs):
         """
         Run iterations of phase retrieval algorithm specified by the
         density modification function
         """
         self._initialize_tracking(n_iter)
+
         for i in range(n_iter):
             if prog_bar:
                 sys.stdout.write('\r')
                 eq = int(np.ceil(np.true_divide(i*100,n_iter*5)))
                 sys.stdout.write("[{:20s}] {}/{} steps  ".format('='*eq, i+1,n_iter))
                 sys.stdout.flush()
-            self.err_track[i], self.ndm_track[i], self.rs_track[i+1] = self._step(density_mod_func, i, **kwargs)
+            self.err_track[self.total_steps], self.ndm_track[self.total_steps], self.rs_track[self.total_steps+1] = self._step(density_mod_func, i, **kwargs)
+            self.total_steps+=1
+
         return
 
     def _ERupdate(self, density, old_density, curr_iter):
@@ -311,21 +325,26 @@ class PhaseRetrieval():
 
         """
         x = np.real(Z)
-        for i in range(self.proximal_iters):
+        for i in range(1,self.proximal_iters+1):
             x = (1/(1+t*self.proximal_lambda))*(Z+t*self.proximal_lambda*self.density_modifier(x))
         return x
 
     def prRED(self,density_modifier = None, max_iter = 100,accelerate=True, evaluate_objective=False,
-                            verbose=True, proximal_iters=1,prox_lambda=.01):
+                            verbose=True, proximal_iters=1,prox_lambda=.01,record_iterates=True):
         if not density_modifier:
             self.density_modifier = lambda x: denoise_tv_chambolle(np.real(x))
         else:
             self.density_modifier = density_modifier
         self.proximal_iters=proximal_iters
         self.proximal_lambda=prox_lambda
-        linear_map = LinearMap(np.fft.fftn,np.fft.ifftn,Vshape=self.shape,Wshape=self.shape)
+        At = lambda x: np.real(np.fft.ifftn(x))
+        linear_map = LinearMap(np.fft.fftn,At,Vshape=self.shape,Wshape=self.shape)
         self.fasta_solver = fasta(A = linear_map, f= self._f, gradf=self._sub_grad_f,g=self._g,proxg=self._proxg, x0=self.real_space_guess,max_iters=max_iter,
             accelerate=accelerate, # Other options: plain, adapative
                             evaluate_objective=evaluate_objective, #evaluate objective function at every step, slows it down
-                            verbose = verbose)
+                            verbose = verbose,record_iterates=record_iterates)
         self.real_space_guess=self.fasta_solver.solution
+        if record_iterates:
+            n_steps = self.fasta_solver.iterates.shape[0]
+            self._initialize_tracking(n_iter = n_steps)
+            self.rs_track[-n_steps:] = self.fasta_solver.iterates
