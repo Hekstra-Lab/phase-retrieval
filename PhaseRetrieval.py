@@ -42,7 +42,7 @@ class PhaseRetrieval():
         return abs_err/norm
     def align(self,unaligned, ref, return_meta=False):
         """
-        Aligns the array "in" to the array "ref"
+        Aligns the array "unaligned" to the array "ref"
 
         inputs
         -------
