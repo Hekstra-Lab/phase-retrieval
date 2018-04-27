@@ -40,7 +40,30 @@ class PhaseRetrieval():
         abs_err = np.sum((np.abs(guess) - np.abs(self.measured_mags))**2)
         norm = np.sum(np.abs(self.measured_mags)**2)
         return abs_err/norm
+    def align(self,unaligned, ref, return_meta=False):
+        """
+        Aligns the array "in" to the array "ref"
 
+        inputs
+        -------
+        unaligned : ndarray to be aligned to ref
+        ref : ndarray to align to
+        return_meta : boolean, return the number of rotations or not
+        output
+        -------
+        aligned : ndarray with the best alignment
+        n_rot(optional) : interger of optimal number of np.rot90 to apply
+        """
+        errs = np.zeros(4)
+        for i in range(4):
+            shift, errs[i], blarg = register_translation(ref, np.rot90(unaligned,k=i))
+        n_rot = np.argmin(errs)
+        shift, error, blargh= register_translation(ref,np.rot90(unaligned,k=n_rot))
+        aligned = np.roll(np.rot90(unaligned,k=n_rot),shift.astype(np.int),axis=(0,1))
+        if return_meta:
+            return aligned, n_rot
+        else:
+            return aligned
     def calc_real_space_error(self, true_im, plot=True):
         """
         Determines the proper rotation and translation for matching the reconstructed real space image to the true one
@@ -51,14 +74,9 @@ class PhaseRetrieval():
         plot : boolean
             whether to plot the shifted image an and the final error plot.
         """
-        errs = np.zeros(4)
-        for i in range(4):
-            shift, errs[i], blarg = register_translation(true_im, np.rot90(self.real_space_guess,k=i))
-        n_rot = np.argmin(errs)
-        shift, error, blargh= register_translation(true_im,np.rot90(self.real_space_guess,k=n_rot))
 
 
-        fixed = np.roll(np.rot90(self.real_space_guess,k=n_rot),shift.astype(np.int),axis=(0,1))
+        fixed, n_rot = self.align(self.real_space_guess,true_im,True)
         if plot:
             plt.imshow(fixed)
             plt.show()
