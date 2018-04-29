@@ -53,9 +53,9 @@ def mix_FT(mag_arr, phase_arr):
     Parameters
     ----------
     mag_arr : np.ndarray
-        Array of magnitudes
+        Array to be fourier transformed for its magnitudes
     phase_arr : np.ndarray
-        Array of complex phases
+        Array to be fourier transformed for its complex phases
 
     Returns
     -------
