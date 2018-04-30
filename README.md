@@ -1,7 +1,7 @@
 # phase-retrieval
 ## A small library implementing phase retrieval algorithms for 2D images.
 
-
+<div style="text-align:center"><img src="https://github.com/HekstraLab/phase-retrieval/blob/master/Images/disp_duck.png" width="350" height="350" /> <img src="https://github.com/HekstraLab/phase-retrieval/blob/master/Images/fourier_duck.png" width="350" height="350"/></div>
 
 The code in the repository was created for a project in AM216 at Harvard University.
 
