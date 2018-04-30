@@ -70,4 +70,4 @@ This file implements a few handy methods for experimenting with phase mixing, i.
 
 - Post clear example notebooks
 - Post code for creating and training DnCNN (and relevant datasets)
-
+- Make `replicate_cat_duck.ipynb` actually replicate Cowtan figures
