@@ -42,7 +42,7 @@ plt.show() #See progression of Fourier space error
 
 ### DnCNN
 
-Our implementation of [DnCNN][https://arxiv.org/pdf/1608.03981.pdf] is based on [this repository][https://github.com/husqin/DnCNN-keras]. You can load our fully trained DnCNN into keras with
+Our implementation of [DnCNN](https://arxiv.org/pdf/1608.03981.pdf) is based on [this repository](https://github.com/husqin/DnCNN-keras). You can load our fully trained DnCNN into keras with
 
 ```python
 from keras.models import load_model
