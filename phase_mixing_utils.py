@@ -124,7 +124,7 @@ def phase_intensity_plot(arr, ax=None, cb=True, min_alpha=0.0, cmap='ocean'):
     disp_arr[:,:,-1] += (1-disp_arr[:,:,-1])*min_alpha
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10,10))
+        fig, ax = plt.subplots(figsize=(8,8))
     elif ax is not None and cb:
         raise ValueError('if you pass an axis you can\'t have cb=True')
     if cmap == 'ocean':
