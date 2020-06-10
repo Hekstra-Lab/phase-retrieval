@@ -7,7 +7,7 @@ The code in the repository was created for a project in AM216 at Harvard Univers
 
 ### PhaseRetrieval
 
-The main piece of this repository is the `PhaseRetrieval` object. Once initialized with a set of Fourier Magnitudes. It can carry out several [Fineup algorithms](http://www2.optics.rochester.edu/workgroups/fienup/PUBLICATIONS/JRF_PR-Tour_AO2013.pdf) (Error reduction, HIO, CHIO) as well as [prRED](https://arxiv.org/pdf/1803.00212.pdf). The object also contains a few methods to asses the success or failure of a given phase retrieval algorithm including tracking of the Fourier space error, real space error, and successive real space guesses. 
+The main piece of this repository is the `PhaseRetrieval` object. Once initialized with a set of Fourier Magnitudes. It can carry out several [Fienup algorithms](http://www2.optics.rochester.edu/workgroups/fienup/PUBLICATIONS/JRF_PR-Tour_AO2013.pdf) (Error reduction, HIO, CHIO) as well as [prRED](https://arxiv.org/pdf/1803.00212.pdf). The object also contains a few methods to asses the success or failure of a given phase retrieval algorithm including tracking of the Fourier space error, real space error, and successive real space guesses. 
 
 #### Dependencies 
 
@@ -31,7 +31,7 @@ im = np.load("some_file.npy") #Load an image
 mags = np.abs(np.fft.fftn(im)) #Compute FFT and take only the magnitudes
 
 pr = PhaseRetrieval(mags)
-pr.CHIO(n_iter=500) #Run Fineup's CHIO algorithm for 500 iterations with default settings
+pr.CHIO(n_iter=500) #Run Fienup's CHIO algorithm for 500 iterations with default settings
 
 plt.imshow(pr.real_space_guess)
 plt.show() #View final result of CHIO
